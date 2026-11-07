@@ -11,6 +11,7 @@
   var PACKS = [
     ['students', 'بيانات الطلاب وأولياء الأمور', 'من «كشف بيانات الطلاب» و«كشف الطلاب»: لكل طالب الاسم والسجل المدني والصف والفصل وولي الأمر وجواله ← «الطلاب» في المتتبع على هذا الجهاز فقط (تُحجب في العرض والطباعة).'],
     ['academic', 'السجل الأكاديمي ودرجات المواد', 'من «المبيضات» لآخر عام أُغلقت درجاته: درجة كل مادة والمعدل لكل طالب ← مواد التميز ومواد الضعف في ملف الطالب.'],
+    ['schedule', 'المعلمون والجدول المدرسي (إسناد المواد)', 'من «الجدول الشامل حسب المعلمين والمادة»: معلم كل مادة في كل فصل ← ربط كل طالب بمعلمه في «المعلمون والإسناد» وتقارير المعلم.'],
     ['absence', 'غياب الطلاب وتأخرهم', 'لكل طالب: أيام الغياب بعذر وبدون عذر ومرات التأخر منذ بداية العام ← تقرير الغياب والمتابعة الأسبوعية.'],
     ['school', 'البيانات الأساسية للمدرسة', 'الرقم الوزاري والمرحلة وعدد الطلاب والفصول ← بيانات المدرسة في المتتبع.']
   ]
@@ -284,16 +285,16 @@
       var name = ''
       for (var ci = row.length - 1; ci >= 0; ci--) { var t = row[ci] || ''; if (t && !cols[ci] && t.split(' ').length >= 3 && !/الابتدائي|المتوسط|الثانوي|^\d/.test(t)) { name = scrub(t); break } }
       if (!name) return
-      var subj = {}, classes = {}, n = 0
+      var subj = {}, classes = {}, pairs = {}, n = 0
       Object.keys(cols).forEach(function (ci) {
         var t = row[ci] || ''; if (!t) return
         n++
         var m = t.match(/^(.*?(?:الابتدائي|المتوسط|الثانوي))\s+(\d+)\s+(.+)$/)
         var s = m ? m[3] : t; subj[s] = (subj[s] || 0) + 1
-        if (m) classes[m[1] + ' ' + m[2]] = 1
+        if (m) { classes[m[1] + ' ' + m[2]] = 1; pairs[m[1] + ' ' + m[2] + '|' + m[3]] = 1 }
         if (/نشاط/.test(s)) activity.push({ day: cols[ci].day, period: cols[ci].period, cls: m ? m[1] + ' ' + m[2] : '', teacher: name })
       })
-      teachers.push({ name: name, subjects: Object.keys(subj).sort(function (a, b) { return subj[b] - subj[a] }), periods: n, classes: Object.keys(classes) })
+      teachers.push({ name: name, subjects: Object.keys(subj).sort(function (a, b) { return subj[b] - subj[a] }), periods: n, classes: Object.keys(classes), pairs: Object.keys(pairs).map(function (k) { var a = k.split('|'); return { cls: a[0], subject: a[1] } }) })
     })
     out.year = out.year || (years[0] || '')
     out.teachers = teachers; out.activity = activity
