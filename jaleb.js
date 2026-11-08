@@ -13,7 +13,7 @@
     ['academic', 'السجل الأكاديمي ودرجات المواد', 'من «المبيضات» لآخر عام أُغلقت درجاته: درجة كل مادة والمعدل لكل طالب ← مواد التميز ومواد الضعف في ملف الطالب.'],
     ['schedule', 'المعلمون والجدول المدرسي (إسناد المواد)', 'من «الجدول الشامل حسب المعلمين والمادة»: معلم كل مادة في كل فصل ← ربط كل طالب بمعلمه في «المعلمون والإسناد» وتقارير المعلم.'],
     ['absence', 'غياب الطلاب وتأخرهم', 'لكل طالب: أيام الغياب بعذر وبدون عذر ومرات التأخر منذ بداية العام ← تقرير الغياب والمتابعة الأسبوعية.'],
-    ['school', 'البيانات الأساسية للمدرسة', 'الرقم الوزاري والمرحلة وعدد الطلاب والفصول ← بيانات المدرسة في المتتبع.']
+    ['school', 'البيانات الأساسية للمدرسة ومعلموها', 'الرقم الوزاري والمرحلة وعدد الطلاب والفصول، وأسماء المعلمين بسجلاتهم المدنية ← فتح ملف التصحيح لكل معلم بسجله المدني.']
   ]
   var saved = {}; try { saved = JSON.parse(localStorage.getItem('nafesNoorPacks') || '{}') } catch (e) { }
 
@@ -700,7 +700,7 @@
         ;(sh2 || []).forEach(function (g2) {
           sheetTable(g2, /^اسم الموظف$/).rows.forEach(function (o) {
             var name = scrub(pick(o, /^اسم الموظف$/)); if (!nameOk(name)) return
-            n++; var since = digits(pick(o, /المباشرة — في الوزارة|المباشرة/)).match(/(\d{4})/); staff.push({ name: name, job: job, subject: clean(pick(o, /^التخصص$/)), qualification: clean(pick(o, /^المؤهل$/)), load: num(pick(o, /الحصص/)), since: since ? since[1] : '', phone: phoneOf(pick(o, /^الجوال$|جوال/)) })
+            n++; var since = digits(pick(o, /المباشرة — في الوزارة|المباشرة/)).match(/(\d{4})/); staff.push({ name: name, job: job, subject: clean(pick(o, /^التخصص$/)), qualification: clean(pick(o, /^المؤهل$/)), load: num(pick(o, /الحصص/)), since: since ? since[1] : '', phone: phoneOf(pick(o, /^الجوال$|جوال/)), nid: /معلم/.test(job) ? nidOf(pick(o, /السجل المدني|رقم الهوية|^الهوية$|رقم السجل|^السجل$/)) : '' })
           })
         })
         if (JOB_KEY[job]) school.counts[JOB_KEY[job]] = (school.counts[JOB_KEY[job]] || 0) + n
@@ -741,7 +741,7 @@
       // المنسوبون بأسمائهم وأعمالهم؛ والجوال فقط إن اختيرت حزمة البيانات الشخصية
       var keepStaff = out.staffRows, withPhones = chosen.indexOf('students') >= 0; delete out.staffRows
       out = deepScrub(out)
-      if (keepStaff && keepStaff.length) out.staffRows = keepStaff.map(function (r) { return { name: deepScrub(r.name), job: r.job, subject: deepScrub(r.subject || ''), qualification: deepScrub(r.qualification || ''), load: r.load, since: r.since || '', phone: withPhones ? r.phone || '' : '' } })
+      if (keepStaff && keepStaff.length) out.staffRows = keepStaff.map(function (r) { return { name: deepScrub(r.name), job: r.job, subject: deepScrub(r.subject || ''), qualification: deepScrub(r.qualification || ''), load: r.load, since: r.since || '', phone: withPhones ? r.phone || '' : '', nid: r.nid || '' } })
       if (keepStudents && keepStudents.length) out.studentRows = keepStudents.map(function (r) { return { name: deepScrub(r.name || ''), nid: r.nid || '', grade: r.grade || '', cls: r.cls || '', guardian: deepScrub(r.guardian || ''), gPhone: r.gPhone || '', gpa: r.gpa || '', track: r.track || '', subjects: r.subjects || undefined } })
       prog(1, 1); last = out
       if (window.__nafesTest) { window.__nafesOut = out; say('اختبار: انتهى الجلب', 'ok'); return }
