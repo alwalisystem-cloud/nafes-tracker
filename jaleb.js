@@ -32,7 +32,7 @@
     '<p>اختر البيانات مرة واحدة (يُحفظ اختيارك)، ثم «جلب وإرسال»: يفتح الجالب التقارير في الخلفية ويرسلها إلى متتبع نافس آليًا. قراءة فقط، وتُحذف أرقام الهوية والجوالات من كل البيانات عدا حزمة «بيانات الطلاب وأولياء الأمور» (تصل إلى المتتبع على جهاز المدرسة فقط).</p>' +
     PACKS.map(function (p) { return '<label class="pk"><input type="checkbox" data-k="' + p[0] + '"' + ((saved[p[0]] !== false) ? ' checked' : '') + '><span><b>' + p[1] + '</b><small>' + p[2] + '</small></span></label>' }).join('') +
     '<div class="bar"><i id="snBar"></i></div><div class="st" id="snSt"></div><ul class="log" id="snLog"></ul>' +
-    '<div class="row"><button class="go" id="snGo">📤 جلب وإرسال إلى متتبع نافس</button><button class="x" id="snDl" style="display:none">تنزيل الملف</button><button class="x" id="snX">إغلاق</button></div></div>'
+    '<div class="row"><button class="go" id="snGo">📤 جلب وإرسال إلى متتبع نافس</button><button class="x" id="snOnly" title="للنسخة غير المتصلة (مثل أدوات دعم المدارس): يُنزّل ملفًا تستورده فيها">📥 جلب وتنزيل الملف فقط</button><button class="x" id="snDl" style="display:none">تنزيل الملف</button><button class="x" id="snX">إغلاق</button></div></div>'
   document.body.appendChild(wrap)
   var $ = function (id) { return document.getElementById(id) }
   $('snX').onclick = function () { wrap.style.display = 'none' }
@@ -721,12 +721,15 @@
     var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'بيانات-نور-' + new Date().toISOString().slice(0, 10) + '.nafes.json'; document.body.appendChild(a); a.click(); a.remove()
   }
   $('snDl').onclick = download
+  var dlOnly = false
+  $('snOnly').onclick = function () { dlOnly = true; $('snGo').onclick() }
   $('snGo').onclick = async function () {
+    var only = dlOnly; dlOnly = false
     var chosen = [].filter.call(wrap.querySelectorAll('input[data-k]'), function (c) { return c.checked }).map(function (c) { return c.getAttribute('data-k') })
     var keep = {}; [].forEach.call(wrap.querySelectorAll('input[data-k]'), function (c) { keep[c.getAttribute('data-k')] = c.checked }); try { localStorage.setItem('nafesNoorPacks', JSON.stringify(keep)) } catch (e) { }
     if (!chosen.length) { say('اختر بيانات واحدة على الأقل.', 'err'); return }
     // نافذة متتبع نافس تُفتح فورًا (بضغطة المستخدم) وتنتظر البيانات
-    var w = window.__nafesTest ? null : window.open(APP + '/#noor', 'nafesTracker')
+    var w = window.__nafesTest || only ? null : window.open(APP + '/#noor', 'nafesTracker')
     $('snGo').disabled = true; $('snLog').innerHTML = ''; $('snDl').style.display = 'none'
     var school = clean((document.querySelector('.user-info, #lblUserInfo, [id*=lblSchool]') || {}).textContent || '')
     var out = { format: FORMAT, fetchedAt: new Date().toISOString(), school: school.replace(/.*-\s*/, '').slice(0, 80), schoolName: school.replace(/.*-\s*/, '').slice(0, 80), year: '' }
@@ -746,6 +749,7 @@
       prog(1, 1); last = out
       if (window.__nafesTest) { window.__nafesOut = out; say('اختبار: انتهى الجلب', 'ok'); return }
       $('snDl').style.display = ''
+      if (only) { download(); say('انتهى الجلب ونُزّل الملف ✓ — استورده في البرنامج من «استيراد ملف من الجالب».', 'ok'); return }
       if (!w) { say('انتهى الجلب. منع المتصفح فتح نافذة متتبع نافس: اسمح بالنوافذ المنبثقة لنور، أو نزّل الملف واستورده.', 'err'); return }
       say('انتهى الجلب — جارٍ الإرسال إلى متتبع نافس…')
       var sent = false, done = false
