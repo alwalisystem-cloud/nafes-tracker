@@ -9,7 +9,7 @@
  *  2) نشر ← نشر جديد ← تطبيق ويب: «التنفيذ بصفتي» و«من يمكنه الوصول: أي شخص». انسخ رابط تطبيق الويب.
  *  3) في لوحة المشرف ← «الربط عبر Google»: الصق الرابط ورمز المالك.
  */
-var VERSION = 1
+var VERSION = 2
 var CHUNK = 45000
 
 function setup() {
@@ -118,6 +118,32 @@ function run(me, op, b) {
       return { ok: true, token: t }
     }
     if (op === 'admin.del') { delUser(String(b.token || '')); return { ok: true } }
+  }
+  // ── المشرف يربط مدارسه بنفسه ──
+  if (op === 'sup.schools') {
+    if (me.role !== 'supervisor' && me.role !== 'admin') return { ok: false, error: 'للمشرف فقط' }
+    return { ok: true, schools: schoolsOf(me).map(function (u) { var x = brief(u); x.token = u.token; return x }) }
+  }
+  if (op === 'sup.school') {
+    if (me.role !== 'supervisor' && me.role !== 'admin') return { ok: false, error: 'للمشرف فقط' }
+    var key2 = String(b.ministry || '').replace(/\D/g, '').slice(0, 10)
+    if (!/^\d{3,10}$/.test(key2)) return { ok: false, error: 'الرقم الوزاري للمدرسة مطلوب (أرقام فقط)' }
+    var ex2 = users().filter(function (u) { return u.role === 'school' && u.school === key2 })[0]
+    if (ex2 && me.role === 'supervisor' && ((me.x && me.x.schools) || []).indexOf(key2) < 0) {
+      var other = users().filter(function (u) { return u.role === 'supervisor' && ((u.x && u.x.schools) || []).indexOf(key2) >= 0 })[0]
+      if (other) return { ok: false, error: 'هذه المدرسة مربوطة لدى المشرف ' + other.name }
+    }
+    var t2 = putUser({ token: ex2 && ex2.token, role: 'school', name: String(b.name || (ex2 && ex2.name) || '').slice(0, 120), school: key2, x: { ministry: key2, app: b.app === 'shahid' ? 'shahid' : 'tracker' } })
+    if (me.role === 'supervisor') { var list = ((me.x && me.x.schools) || []).slice(); if (list.indexOf(key2) < 0) list.push(key2); putUser({ token: me.token, role: 'supervisor', name: me.name, school: '', x: { schools: list } }) }
+    return { ok: true, token: t2, key: key2 }
+  }
+  if (op === 'sup.unlink') {
+    if (me.role !== 'supervisor' && me.role !== 'admin') return { ok: false, error: 'للمشرف فقط' }
+    var k3 = String(b.school || '')
+    if (me.role === 'supervisor') { putUser({ token: me.token, role: 'supervisor', name: me.name, school: '', x: { schools: ((me.x && me.x.schools) || []).filter(function (k) { return k !== k3 }) } }) }
+    var still = users().some(function (u) { return u.role === 'supervisor' && ((u.x && u.x.schools) || []).indexOf(k3) >= 0 })
+    if (!still || me.role === 'admin') { var su = users().filter(function (u) { return u.role === 'school' && u.school === k3 })[0]; if (su) delUser(su.token) }
+    return { ok: true }
   }
   // ── المشرف (والمالك): ملخصات مدارسه وملاحظاته ──
   if (op === 'sup.pull') {
