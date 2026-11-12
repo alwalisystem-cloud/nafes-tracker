@@ -9,7 +9,7 @@
  *  2) نشر ← نشر جديد ← تطبيق ويب: «التنفيذ بصفتي» و«من يمكنه الوصول: أي شخص». انسخ رابط تطبيق الويب.
  *  3) في لوحة المشرف ← «الربط عبر Google»: الصق الرابط ورمز المالك.
  */
-var VERSION = 2
+var VERSION = 3
 var CHUNK = 45000
 
 function setup() {
@@ -171,6 +171,18 @@ function run(me, op, b) {
     if (me.role !== 'school') return { ok: false, error: 'للمدرسة فقط' }
     var nm = String(b.name || '').slice(0, 120), ex = users().filter(function (u) { return u.role === 'teacher' && u.school === me.school && u.name === nm })[0]
     return { ok: true, token: ex ? ex.token : putUser({ role: 'teacher', name: nm, school: me.school, x: {} }) }
+  }
+  // ── نسخة احتياطية مشفرة لبيانات المدرسة (تُفك بكلمة سر المدرسة فقط) ──
+  if (op === 'school.backup') {
+    if (me.role !== 'school') return { ok: false, error: 'للمدرسة فقط' }
+    var bd = b.data; if (!bd || typeof bd !== 'object' || !bd.data || bd.enc !== 'aes-gcm/pbkdf2') return { ok: false, error: 'نسخة غير صالحة (يجب أن تكون مشفرة)' }
+    put('backup', me.school, me.school, me.name, bd); return { ok: true, at: new Date().toISOString() }
+  }
+  if (op === 'school.backupInfo' || op === 'school.restore') {
+    if (me.role !== 'school') return { ok: false, error: 'للمدرسة فقط' }
+    var bk = rows('backup', me.school)[0]
+    if (!bk) return { ok: true, exists: false }
+    return op === 'school.restore' ? { ok: true, exists: true, at: bk.at, data: bk.data } : { ok: true, exists: true, at: bk.at, size: JSON.stringify(bk.data || {}).length }
   }
   // ── المعلم: نتائجه مشفرة إلى مدرسته ──
   if (op === 'teacher.push') {
