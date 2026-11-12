@@ -9,7 +9,7 @@
  *  2) نشر ← نشر جديد ← تطبيق ويب: «التنفيذ بصفتي» و«من يمكنه الوصول: أي شخص». انسخ رابط تطبيق الويب.
  *  3) في لوحة المشرف ← «الربط عبر Google»: الصق الرابط ورمز المالك.
  */
-var VERSION = 3
+var VERSION = 4
 var CHUNK = 45000
 
 function setup() {
@@ -97,24 +97,30 @@ function schoolsOf(me) {
   var mine = (me.x && me.x.schools) || []
   return all.filter(function (u) { return mine.indexOf(u.school) >= 0 })
 }
+/** مفتاح تشفير النسخ الاحتياطي للمدرسة: يُنشأ مرة ويُعطى لرمز المدرسة فقط (لا يظهر في لوحات المشرفين) */
+function bkKeyOf(u) {
+  if (u.x && u.x.bk) return u.x.bk
+  var x = u.x || {}; x.bk = tok() + tok(); putUser({ token: u.token, role: u.role, name: u.name, school: u.school, x: x }); return x.bk
+}
 function brief(u) { return { key: u.school, name: u.name, ministry: (u.x && u.x.ministry) || '', app: (u.x && u.x.app) || 'tracker' } }
 
 function run(me, op, b) {
   if (op === 'whoami') {
     var r = { ok: true, role: me.role, name: me.name, v: VERSION }
     if (me.role === 'school' || me.role === 'teacher') { var s = users().filter(function (u) { return u.role === 'school' && u.school === me.school })[0]; r.school = s ? brief(s) : { key: me.school, name: '', ministry: '' } }
+    if (me.role === 'school') r.bk = bkKeyOf(me)
     return r
   }
   // ── المالك: المشرفون والمدارس ──
   if (op.indexOf('admin.') === 0) {
     if (me.role !== 'admin') return { ok: false, error: 'للمالك فقط' }
-    if (op === 'admin.list') return { ok: true, users: users().filter(function (u) { return u.role !== 'teacher' }).map(function (u) { return { token: u.token, role: u.role, name: u.name, school: u.school, x: u.x, at: u.at } }) }
+    if (op === 'admin.list') return { ok: true, users: users().filter(function (u) { return u.role !== 'teacher' }).map(function (u) { var x = {}; for (var k in (u.x || {})) if (k !== 'bk') x[k] = u.x[k]; return { token: u.token, role: u.role, name: u.name, school: u.school, x: x, at: u.at } }) }
     if (op === 'admin.user') {
       var role = b.role === 'supervisor' ? 'supervisor' : 'school'
       var key = role === 'school' ? String(b.school || '').slice(0, 40) : ''
       if (role === 'school' && !/^\d{3,10}$/.test(key)) return { ok: false, error: 'الرقم الوزاري للمدرسة مطلوب (أرقام فقط)' }
-      var existing = role === 'school' && !b.token ? users().filter(function (u) { return u.role === 'school' && u.school === key })[0] : null
-      var t = putUser({ token: b.token || (existing && existing.token), role: role, name: String(b.name || '').slice(0, 120), school: key, x: role === 'school' ? { ministry: String(b.ministry || '').slice(0, 20), app: b.app === 'shahid' ? 'shahid' : 'tracker' } : { schools: (b.schools || []).map(String).slice(0, 200) } })
+      var existing = role === 'school' ? users().filter(function (u) { return u.role === 'school' && u.school === key })[0] : null
+      var t = putUser({ token: b.token || (existing && existing.token), role: role, name: String(b.name || '').slice(0, 120), school: key, x: role === 'school' ? { ministry: String(b.ministry || '').slice(0, 20), app: b.app === 'shahid' ? 'shahid' : 'tracker', bk: existing && existing.x && existing.x.bk } : { schools: (b.schools || []).map(String).slice(0, 200) } })
       return { ok: true, token: t }
     }
     if (op === 'admin.del') { delUser(String(b.token || '')); return { ok: true } }
@@ -133,7 +139,7 @@ function run(me, op, b) {
       var other = users().filter(function (u) { return u.role === 'supervisor' && ((u.x && u.x.schools) || []).indexOf(key2) >= 0 })[0]
       if (other) return { ok: false, error: 'هذه المدرسة مربوطة لدى المشرف ' + other.name }
     }
-    var t2 = putUser({ token: ex2 && ex2.token, role: 'school', name: String(b.name || (ex2 && ex2.name) || '').slice(0, 120), school: key2, x: { ministry: key2, app: b.app === 'shahid' ? 'shahid' : 'tracker' } })
+    var t2 = putUser({ token: ex2 && ex2.token, role: 'school', name: String(b.name || (ex2 && ex2.name) || '').slice(0, 120), school: key2, x: { ministry: key2, app: b.app === 'shahid' ? 'shahid' : 'tracker', bk: ex2 && ex2.x && ex2.x.bk } })
     if (me.role === 'supervisor') { var list = ((me.x && me.x.schools) || []).slice(); if (list.indexOf(key2) < 0) list.push(key2); putUser({ token: me.token, role: 'supervisor', name: me.name, school: '', x: { schools: list } }) }
     return { ok: true, token: t2, key: key2 }
   }
